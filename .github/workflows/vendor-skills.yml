@@ -1,0 +1,63 @@
+name: Vendor research skills
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/vendor-skills.yml
+permissions:
+  contents: write
+jobs:
+  vendor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch published skill bundles
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .tmp-skill-sources .agents/skills
+          git clone --depth 1 https://github.com/K-Dense-AI/scientific-agent-skills.git .tmp-skill-sources/kdense
+          git clone --depth 1 https://github.com/Yuan1z0825/nature-skills.git .tmp-skill-sources/nature
+          git clone --depth 1 https://github.com/weewrr/Academic-Research-Suite.git .tmp-skill-sources/suite
+          git clone --depth 1 https://github.com/yrui-cmd/Cell.git .tmp-skill-sources/cell
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil
+          base=Path('.tmp-skill-sources')
+          dest=Path('.agents/skills')
+          skills={
+              'kdense':['scientific-brainstorming','literature-review','statistical-analysis'],
+              'nature':['nature-academic-search','nature-writing','nature-polishing','nature-reviewer','nature-response','nature-data','nature-paper2ppt'],
+              'cell':['cell_su7','cell-cns-figure'],
+          }
+          for repo,names in skills.items():
+              for name in names:
+                  src=base/repo/'skills'/name
+                  if not (src/'SKILL.md').is_file():
+                      print('SKIP (not found)',repo,name)
+                      continue
+                  target=dest/name
+                  if target.exists():
+                      shutil.rmtree(target)
+                  shutil.copytree(src,target,ignore=shutil.ignore_patterns('.git','__pycache__','.env','.env.*'))
+                  print('VENDORED',repo,name)
+          src=base/'suite'
+          if not (src/'SKILL.md').is_file():
+              raise RuntimeError('Academic-Research-Suite missing SKILL.md')
+          target=dest/'academic-research-suite'
+          if target.exists():
+              shutil.rmtree(target)
+          shutil.copytree(src,target,ignore=shutil.ignore_patterns('.git','__pycache__','.env','.env.*'))
+          print('VENDORED suite')
+          PY
+          rm -rf .tmp-skill-sources
+      - name: Commit bundles
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add .agents/skills
+          if ! git diff --cached --quiet; then
+            git commit -m "Vendor research skill bundles"
+            git push
+          fi
