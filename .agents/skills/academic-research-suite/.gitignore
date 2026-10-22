@@ -1,0 +1,9 @@
+# Python bytecode caches — regenerated automatically, never commit them.
+__pycache__/
+*.py[cod]
+
+# Packaging / editor / OS noise.
+*.egg-info/
+.venv/
+.DS_Store
+Thumbs.db
